@@ -244,50 +244,32 @@ std::string QRCodeGenerator::SendUserMessage()
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_data);
 
         CURLcode res = curl_easy_perform(curl);
-        if (res != CURLE_OK)
+        long response_code;
+        curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);
+        if (response_code == 200)
         {
-            if (res == CURLE_OPERATION_TIMEDOUT)
+            // Parse JSON response
+            try
             {
-                std::cout << "Connection timeout!" << std::endl;
+                auto json_response = nlohmann::json::parse(response_data);
+                if (json_response.contains("user_uuid"))
+                {
+                    user_uuid = json_response["user_uuid"].get<std::string>();
+                    std::cout << "Success! Retrieved user_uuid: " << user_uuid << std::endl;
+                }
+                else
+                {
+                    std::cout << "Failed to retrieve user_uuid from response." << std::endl;
+                }
             }
-            else if (res == CURLE_COULDNT_CONNECT)
+            catch (nlohmann::json::parse_error &e)
             {
-                std::cout << "Failed to connect to the server. Please check your network or server status." << std::endl;
-            }
-            else
-            {
-                std::cout << "Request failed: " << curl_easy_strerror(res) << std::endl;
+                std::cout << "Failed to parse JSON response: " << e.what() << std::endl;
             }
         }
         else
         {
-            long response_code;
-            curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);
-            if (response_code == 200)
-            {
-                // Parse JSON response
-                try
-                {
-                    auto json_response = nlohmann::json::parse(response_data);
-                    if (json_response.contains("user_uuid"))
-                    {
-                        user_uuid = json_response["user_uuid"].get<std::string>();
-                        std::cout << "Success! Retrieved user_uuid: " << user_uuid << std::endl;
-                    }
-                    else
-                    {
-                        std::cout << "Failed to retrieve user_uuid from response." << std::endl;
-                    }
-                }
-                catch (nlohmann::json::parse_error &e)
-                {
-                    std::cout << "Failed to parse JSON response: " << e.what() << std::endl;
-                }
-            }
-            else
-            {
-                std::cout << "Request failed with status code " << response_code << ", Response: " << response_data << std::endl;
-            }
+            std::cout << "Request failed with status code " << response_code << ", Response: " << response_data << std::endl;
         }
 
         curl_easy_cleanup(curl);
