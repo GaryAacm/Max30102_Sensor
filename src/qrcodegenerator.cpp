@@ -239,7 +239,7 @@ std::string QRCodeGenerator::SendUserMessage()
         std::string full_url = server_url + "?sample_id=" + param_encoded;
 
         curl_easy_setopt(curl, CURLOPT_URL, full_url.c_str());
-        curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5L);
+        curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10L);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeCallback);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_data);
 
