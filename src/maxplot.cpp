@@ -25,6 +25,7 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <zlib.h>
+#include<thread>
 
 using namespace std;
 using namespace nlohmann;
@@ -73,7 +74,7 @@ void MaxPlot::setup_timer()
         max30102 = new MAX30102("/dev/i2c-4");
     }
 
-    max30102->Init_Sensor();
+    //max30102->Init_Sensor();
 
     struct sigevent sev;
     sev.sigev_notify = SIGEV_THREAD;
@@ -177,7 +178,6 @@ void MaxPlot::startTimerIfReady()
     {
         cout << "Beginning to stop and begin after 255 s" << endl;
 
-        // stop_Plot_Timer();
         stop_Mqtt_Thread();
 
         cout << "Now start the control" << endl;
@@ -193,7 +193,7 @@ void MaxPlot::startTimerIfReady()
                         timer_start_ready = nullptr;      // 清空指针
                     });
         }
-        timer_start_ready->start(); // 启动计时器
+        timer_start_ready->start();
     }
 }
 
@@ -309,11 +309,14 @@ void MaxPlot::Update_Plot_Thread()
     if (!timer)
     {
         timer = new QTimer(this);
+        timer->setTimerType(Qt::PreciseTimer);
         cout << "Creat timer update plot" << endl;
     }
     connect(timer, &QTimer::timeout, this, &MaxPlot::updatePlot);
-    timer->start(33);
+    timer->start(50);
 }
+
+
 
 void MaxPlot::Mqtt_Thread()
 {
@@ -396,12 +399,6 @@ void MaxPlot::stop_Mqtt_Thread()
         mqttThread = nullptr;
         cout << "delete mqtt thread" << endl;
     }
-    // int Init_WQTT = system("pkill mosquitto &");
-    // int Open_MQTT = system("mosquitto -c /etc/mosquitto/conf.d/mosquitto.conf -v &");
-    //  if (Open_MQTT == -1)
-    // {
-    //     cerr << "Failed to open MQTT" << endl;
-    // }
 }
 
 void MaxPlot::onMqttFinished()
@@ -526,7 +523,7 @@ void MaxPlot::Http_Worker_Start()
     long ts_start = static_cast<long>(Start_TimeStamp);
     string Start_string = to_string(ts_start);
 
-    std::thread sendThread(Send_Message, Start_string, channel_send_id, red_send_data, ir_send_data, sample_id, uuid, 100);
+    std::thread sendThread(Send_Message, Start_string, channel_send_id, red_send_data, ir_send_data, sample_id, uuid, 80);
     sendThread.detach();
     curl_global_cleanup();
 
@@ -585,7 +582,7 @@ void MaxPlot::onExitButtonClicked()
     }
     stop_Plot_Timer();
     delete_timer();
-   
+
     if (timer_start_ready != nullptr)
     {
         timer_start_ready->stop();        // 停止定时器
@@ -613,6 +610,7 @@ void MaxPlot::handleDataReady(const MaxData &data)
         red_send_data[count_data] = data.redData[i];
         ir_send_data[count_data++] = data.irData[i];
     }
+    // cout<<"count is"<<countPlot++<<endl;
 }
 
 void MaxPlot::setupPlot()
@@ -739,7 +737,6 @@ double MaxPlot::Pre_Plot_data()
     uint32_t reddata[8], irdata[8], red = 0, ir = 0, reddata_past[8] = {0}, irdata_past[8] = {0};
 
     double elapsedTime = startTime.msecsTo(QDateTime::currentDateTime()) / 1000.0;
-    countPlot++;
 
     for (int i = 0; i < 8; i++)
     {
@@ -781,7 +778,7 @@ double MaxPlot::Pre_Plot_data()
     ir3.append(static_cast<double>(irdata[7]));
     xData.append(elapsedTime);
 
-    cout << "count Plot is" << countPlot++ << endl;
+    //cout << "count is" << countPlot++ << endl;
 
     return elapsedTime;
 }
@@ -826,6 +823,7 @@ void MaxPlot::updatePlot()
         red3.append(static_cast<double>(0));
         ir3.append(static_cast<double>(0));
         xData.append(elapsedTime);
+        countPlot = 0;
     }
 
     sampleCount++;
